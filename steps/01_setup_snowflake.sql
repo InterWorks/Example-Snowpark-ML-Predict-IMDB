@@ -1,0 +1,59 @@
+/*-----------------------------------------------------------------------------
+Blogpost code: Predicting IMDB with Snowpark ML
+Script:       01_setup_snowflake.sql
+Author:       Azucena Coronel
+Last Updated: 2023/08/22
+-----------------------------------------------------------------------------*/
+
+
+-- ----------------------------------------------------------------------------
+-- Step #1: Create the account level objects
+-- ----------------------------------------------------------------------------
+---Database Objects
+USE ROLE SYSADMIN;
+CREATE OR REPLACE WAREHOUSE "LAB001_WH" 
+  WITH WAREHOUSE_SIZE = 'X-SMALL' 
+  AUTO_SUSPEND = 60 
+  AUTO_RESUME = TRUE 
+  MIN_CLUSTER_COUNT = 1 
+  MAX_CLUSTER_COUNT = 1 
+  STATEMENT_TIMEOUT_IN_SECONDS = 60
+  SCALING_POLICY = 'STANDARD'
+  INITIALLY_SUSPENDED = TRUE;
+
+CREATE OR REPLACE DATABASE LAB001_DB;
+CREATE OR REPLACE SCHEMA SCOOBY_SCHEMA;
+CREATE OR REPLACE STAGE SCOOBY_ASSETS; --to store model assets
+
+
+-- ----------------------------------------------------------------------------
+-- Step #2: Create role for the project and assign the objects
+-- ----------------------------------------------------------------------------
+USE ROLE SECURITYADMIN;
+-- Roles
+SET MY_USER = CURRENT_USER();
+CREATE OR REPLACE ROLE LAB001_ROLE;
+GRANT ROLE LAB001_ROLE TO ROLE SYSADMIN;
+GRANT ALL ON WAREHOUSE LAB001_WH TO ROLE LAB001_ROLE;
+
+USE ROLE ACCOUNTADMIN;
+GRANT EXECUTE TASK ON ACCOUNT TO ROLE LAB001_ROLE;
+GRANT MONITOR EXECUTION ON ACCOUNT TO ROLE LAB001_ROLE;
+
+USE ROLE SECURITYADMIN;
+GRANT IMPORTED PRIVILEGES ON DATABASE SNOWFLAKE TO ROLE LAB001_ROLE;
+
+--Database
+GRANT USAGE ON DATABASE LAB001_DB TO ROLE LAB001_ROLE;
+--Schema
+GRANT USAGE, MONITOR, CREATE TABLE, CREATE FUNCTION, CREATE PROCEDURE ON ALL SCHEMAS IN DATABASE LAB001_DB TO ROLE LAB001_ROLE;
+GRANT USAGE, MONITOR, CREATE TABLE, CREATE FUNCTION, CREATE PROCEDURE ON FUTURE SCHEMAS IN DATABASE LAB001_DB TO ROLE LAB001_ROLE;
+--Tables
+GRANT ALL ON ALL TABLES IN DATABASE LAB001_DB TO ROLE LAB001_ROLE;
+GRANT ALL ON FUTURE TABLES IN DATABASE LAB001_DB TO ROLE LAB001_ROLE;
+--File Formats
+GRANT ALL ON STAGE LAB001_DB.SCOOBY_SCHEMA.SCOOBY_ASSETS TO ROLE LAB001_ROLE;
+GRANT ALL ON FILE FORMAT LAB001_DB.SCOOBY_SCHEMA.CSVFORMAT  TO ROLE LAB001_ROLE;
+
+-- Grant role to user
+GRANT ROLE LAB001_ROLE TO USER IDENTIFIER($MY_USER);
